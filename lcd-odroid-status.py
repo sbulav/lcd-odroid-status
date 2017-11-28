@@ -203,7 +203,7 @@ def draw_time():
 ##############################################################################################
 #        DRAW MULTIPLE MODES THOUGH CYCLE                                                    #
 ##############################################################################################
-def draw_multimode(curtime):
+def draw_multimode():
     curtime = strftime('%S')
     if 0 <= int(curtime) <=10 :
         draw_ip()
