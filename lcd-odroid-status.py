@@ -2,8 +2,8 @@
 
 import wiringpi2
 import subprocess
-from time import gmtime, strftime, sleep
-from threading import Timer  
+from time import localtime, strftime, sleep
+from threading import Timer
 
 ##############################################################################################
 #        INITIALIZATION                                                                      #
@@ -34,7 +34,7 @@ lcdCol = 0 # LCD Column
 
 
 # Working with LEDs
-ledPorts = [ 21, 22, 23, 24, 11, 26, 27 ] 
+ledPorts = [ 21, 22, 23, 24, 11, 26, 27 ]
 PUD_UP = 2 # Set pull-up resistor mode
 INPUT = 0 # We use 0 for input 
 OUTPUT = 1 # We use 1 for output 
@@ -90,7 +90,6 @@ def draw_lcd(lcd_line1, lcd_line2):
     wiringpi2.lcdPrintf(lcdHandle, lcd_line1)
     wiringpi2.lcdPosition(lcdHandle, lcdCol, lcdRow + 1)
     wiringpi2.lcdPrintf(lcdHandle, lcd_line2)
-    
 ##############################################################################################
 #        Run OS command and return its output                                                #
 ##############################################################################################
@@ -108,7 +107,7 @@ def run_cmd(cmd):
 def get_ipaddr():
     cmd = "ifconfig eth0 | grep 'inet addr' | cut -d ':' -f2 | cut -d ' ' -f1"
     ipaddr = run_cmd(cmd)[:-1] # set output of command into ipaddr variable
-    return ipaddr 
+    return ipaddr
 
 ##############################################################################################
 #        GET HOSTNAME                                                                        #
@@ -124,8 +123,8 @@ def get_hostname():
 ##############################################################################################
 
 def get_load():
-    cmd_loadavg = "uptime | cut -f 5 -d':'"
-    loadavg = run_cmd(cmd_loadavg)[:-1]
+    cmd_loadavg = "cat /proc/loadavg"
+    loadavg = run_cmd(cmd_loadavg)[:-11]
     return loadavg
 
 
@@ -155,7 +154,7 @@ def draw_button_press(mode,change_val):
     elif change_val == 1:
         lcd_line1 = ' RIGHT BTN PRESSED'
     else:
-        lcd_line1 = ' NO BTN PRESSED ' 
+        lcd_line1 = ' NO BTN PRESSED '
     lcd_line2 = 'MODE CHG TO: ' + str(mode)
     draw_lcd( lcd_line1, lcd_line2)
     for led in ledPorts:    #turn off all lights
@@ -197,7 +196,7 @@ def draw_loadavg():
 
 def draw_time():
     lcd_line1 = ' TIME: '
-    lcd_line2 = strftime("%d-%m-%Y %H:%M", gmtime())
+    lcd_line2 = strftime("%d-%m-%Y %H:%M", localtime())
     draw_lcd( lcd_line1, lcd_line2)
 
 ##############################################################################################
@@ -223,7 +222,7 @@ ipaddr = get_ipaddr()
 mode = 1 # 0 - cycle through all modes, 1 - ip, 2 - hostname, 3 - load average, 4 - time
 change_val = 0 # Value to change mode
 
-draw_ip() # Start showing IP Address before main loop
+rt = RepeatedTimer(2, draw_multimode) #Start drawing multimode on begin
 
 ##############################################################################################
 #        MAIN CYCLE                                                                          #
@@ -248,7 +247,7 @@ while True:
 #        change_val = 0
     if change_val != 0: # If button was pressed and we have to change current working mode
         mode = draw_button_press(mode, change_val)   # Draw which button was pressed
-        try: 
+        try:
             rt.stop()  # Stop timer if if was running
         except:
             pass
@@ -267,4 +266,3 @@ while True:
                 rt = RepeatedTimer(60, draw_time)
     else:
         sleep(0.5) # don't abuse CPU
-        
