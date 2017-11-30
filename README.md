@@ -30,3 +30,32 @@ sudo lcd-odroid-status &
 
 ```
 
+### Starting as a systemd service
+
+Copy python script to /usr/local/bin:
+```
+sudo cp lcd-odroid-status.py /usr/local/bin/lcd-odroid-status.py
+```
+
+Copy SystemD unit file to /etc/systemd/system:
+```
+sudo cp lcd-odroid-status.service /etc/systemd/system/
+```
+
+Load new unit file:
+```
+sudo systemctl daemon-reload
+```
+
+Start lcd-odroid-status and enable it if you'd like script to start at system boot:
+```
+sudo systemctl start lcd-odroid-status
+sudo systemctl enable lcd-odroid-status 
+```
+
+Monitor status and errors:
+
+```
+systemctl status lcd-odroid-status
+```
+
