@@ -1,4 +1,9 @@
 #!/usr/bin/python
+#--------------------------------------
+#
+# Author: Sergey Bulavintsev
+# Date  : 01.12.2017
+#--------------------------------------
 
 import wiringpi2
 import subprocess
@@ -87,9 +92,9 @@ class RepeatedTimer(object):
 def draw_lcd(lcd_line1, lcd_line2):
     wiringpi2.lcdClear(lcdHandle)
     wiringpi2.lcdPosition(lcdHandle, lcdCol, lcdRow)
-    wiringpi2.lcdPrintf(lcdHandle, lcd_line1)
+    wiringpi2.lcdPrintf(lcdHandle, lcd_line1[:LCD_COL])
     wiringpi2.lcdPosition(lcdHandle, lcdCol, lcdRow + 1)
-    wiringpi2.lcdPrintf(lcdHandle, lcd_line2)
+    wiringpi2.lcdPrintf(lcdHandle, lcd_line2[:LCD_COL])
 ##############################################################################################
 #        Run OS command and return its output                                                #
 ##############################################################################################
@@ -124,7 +129,7 @@ def get_hostname():
 
 def get_load():
     cmd_loadavg = "cat /proc/loadavg"
-    loadavg = run_cmd(cmd_loadavg)[:-11]
+    loadavg = run_cmd(cmd_loadavg)[:-12]
     return loadavg
 
 
@@ -205,13 +210,16 @@ def draw_time():
 def draw_multimode():
     curtime = strftime('%S')
     if 0 <= int(curtime) <=10 :
-        draw_ip()
+        if curtime == '02': # don't redraw if it's not necessary
+            draw_ip()
     elif 11 <= int(curtime) <=20 :
-        draw_hostname()
+        if curtime == '12':
+            draw_hostname()
     elif 21 <= int(curtime) <=40 :
         draw_loadavg()
     elif 31 <= int(curtime) <=60 :
-        draw_time()
+        if curtime == '32':
+            draw_time()
 
 ##############################################################################################
 #        INITIALIZE ONE-TIME OS PARAMETERS                                                   #
@@ -228,41 +236,45 @@ rt = RepeatedTimer(2, draw_multimode) #Start drawing multimode on begin
 #        MAIN CYCLE                                                                          #
 ##############################################################################################
 
-while True:
+def main():
+    while True:
+        is_button1_pressed = wiringpi2.digitalRead(PORT_BUTTON1)  # Check is Left BTN Pressed
+        is_button2_pressed = wiringpi2.digitalRead(PORT_BUTTON2)  # Check if Right BTN Pressed
 
-    is_button1_pressed = wiringpi2.digitalRead(PORT_BUTTON1)  # Check is Left BTN Pressed
-    is_button2_pressed = wiringpi2.digitalRead(PORT_BUTTON2)  # Check if Right BTN Pressed
+        if not is_button1_pressed: # Decide in which direction to change current mode
+            change_val = -1
+        elif not is_button2_pressed:
+            change_val = 1
+        else:
+            change_val = 0
+        if change_val != 0: # If button was pressed and we have to change current working mode
+            mode = draw_button_press(mode, change_val)   # Draw which button was pressed
+            try:
+                rt.stop()  # Stop timer if if was running
+            except:
+                pass
+            finally:
+                if mode == 0: # Multimode
+                    rt = RepeatedTimer(2, draw_multimode) # Start timer which will draw multimode every 2 sec
+                elif mode == 1: # IP Address
+                    draw_ip()
+                elif mode == 2: # Hostname
+                    draw_hostname()
+                elif mode == 3: # Load Average
+                    draw_loadavg()
+                    rt = RepeatedTimer(5, draw_loadavg)
+                elif mode == 4: # Time
+                    draw_time()
+                    rt = RepeatedTimer(60, draw_time)
+        else:
+            sleep(0.5) # don't abuse CPU
 
-    if not is_button1_pressed: # Decide in which direction to change current mode
-        change_val = -1
-    elif not is_button2_pressed:
-        change_val = 1
-    else:
-        change_val = 0
-    # test only
-#    curtime = strftime('%S')
-#    if curtime == '30' or curtime == '00':
-#        change_val = 1
-#    else:
-#        change_val = 0
-    if change_val != 0: # If button was pressed and we have to change current working mode
-        mode = draw_button_press(mode, change_val)   # Draw which button was pressed
-        try:
-            rt.stop()  # Stop timer if if was running
-        except:
-            pass
-        finally:
-            if mode == 0: # Multimode
-                rt = RepeatedTimer(2, draw_multimode) # Start timer which will draw multimode every 2 sec
-            elif mode == 1: # IP Address
-                draw_ip()
-            elif mode == 2: # Hostname
-                draw_hostname()
-            elif mode == 3: # Load Average
-                draw_loadavg()
-                rt = RepeatedTimer(5, draw_loadavg)
-            elif mode == 4: # Time
-                draw_time()
-                rt = RepeatedTimer(60, draw_time)
-    else:
-        sleep(0.5) # don't abuse CPU
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print "Interrupted by keyboard"
+        pass
+    finally:
+        rt.stop()
+        draw_lcd('STOP DRAWING', 'GOODBYE')
